@@ -25,6 +25,7 @@ export default function Tracker({
   active?: boolean | null;
 }) {
   const { storm } = snapshot;
+  const stormLabel = storm.classification === "HU" ? `Hurricane ${storm.name}` : storm.name;
   const outdated =
     stale ||
     (active === true && isStale(snapshot.fetchedAt)) ||
@@ -60,7 +61,10 @@ export default function Tracker({
         Official advisory: <Time value={storm.lastUpdate} />. Last successful data
         check: <Time value={snapshot.fetchedAt} />. <TimeZoneSwitch />
       </p>
-      <section className="tracker-shell" aria-label="Storm tracker">
+      <h2 id="forecast-map-heading">
+        {stormLabel} {snapshot.track ? "Forecast Path and Cone" : "Forecast Map"}
+      </h2>
+      <section className="tracker-shell" aria-labelledby="forecast-map-heading">
         <StormMap snapshot={snapshot} city={city} />
         <aside className="tracker-sidebar">
           <div className="storm-heading">
@@ -68,7 +72,14 @@ export default function Tracker({
               ↻
             </span>
             <div>
-              <h2>{storm.name}</h2>
+              <h2>
+                {stormLabel}{" "}
+                {active === false
+                  ? "Last Official Status"
+                  : active === true && !outdated
+                    ? "Current Status"
+                    : "Last Saved Status"}
+              </h2>
               <p>Official classification: {classification(storm)}</p>
             </div>
           </div>
@@ -194,7 +205,7 @@ export function ChangeSummary({ snapshot }: { snapshot: Snapshot }) {
   if (!previous) return null;
   return (
     <section className="update-summary">
-      <h2>Since the previous advisory</h2>
+      <h2>Changes Since the Previous NHC Advisory</h2>
       <p>
         Compared with the saved advisory from{" "}
         <Time value={previous.lastUpdate} />:

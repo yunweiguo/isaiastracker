@@ -88,9 +88,8 @@ export default async function Home() {
             <section className="feature-story">
               <span className="source-tag">The full picture</span>
               <h2>
-                A forecast is more
-                <br />
-                than a center line.
+                Explore {snapshot.storm.classification === "HU" && "the Hurricane "}
+                {snapshot.storm.name} Advisory Details
               </h2>
               <p>
                 Explore forecast points, the saved official storm status, and
@@ -155,7 +154,7 @@ export default async function Home() {
         </section>
       )}
       <section className="faq">
-        <h2>What should you know about hurricane forecasts?</h2>
+        <h2>Hurricane Forecast FAQs</h2>
         <details>
           <summary>Is this an official hurricane forecast?</summary>
           <p>
