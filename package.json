@@ -11,6 +11,7 @@
     "check": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "test:smoke": "tsx scripts/smoke.ts",
+    "test:browser": "tsx scripts/browser-smoke.ts",
     "build:cf": "opennextjs-cloudflare build",
     "preview:cf": "opennextjs-cloudflare preview",
     "deploy": "pnpm build:cf && opennextjs-cloudflare deploy",
@@ -33,6 +34,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/shpjs": "^3.4.7",
+    "playwright": "^1.63.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "wrangler": "^4.148.0"

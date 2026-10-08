@@ -17,11 +17,21 @@ function useMode() {
 
 export default function Time({ value }: { value: string }) {
   const current = useMode();
-  const zone =
-    current === "local"
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone
-      : "UTC";
-  return <time dateTime={value}>{formatTime(value, zone)}</time>;
+  let zone = "UTC";
+  if (current === "local") {
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      // A browser without usable time-zone data still shows the same instant.
+    }
+  }
+  let label: string;
+  try {
+    label = formatTime(value, zone);
+  } catch {
+    label = formatTime(value);
+  }
+  return <time dateTime={value}>{label}</time>;
 }
 
 export function TimeZoneSwitch() {

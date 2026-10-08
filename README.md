@@ -19,6 +19,8 @@ pnpm dev
 pnpm test
 pnpm check
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:browser
 pnpm start
 ```
 

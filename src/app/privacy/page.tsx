@@ -17,8 +17,10 @@ export default function Privacy() {
       </p>
       <p>
         If you choose “Use my location,” your browser asks permission and opens
-        the official NWS forecast with your coordinates in the URL. Stormscope
-        does not store those coordinates.
+        the official NWS forecast with coordinates rounded to four decimal
+        places in the URL. NWS receives those coordinates, and the URL may remain
+        in your browser history. Stormscope does not store them. NWS forecasts
+        are only available where that service provides coverage.
       </p>
       <h2>Analytics</h2>
       <p>

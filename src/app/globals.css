@@ -1120,6 +1120,10 @@ td:first-child {
   text-decoration: underline;
   cursor: pointer;
 }
+.location-link:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
 @media (max-width: 640px) {
   .hero {
     padding: 28px 0 24px;
