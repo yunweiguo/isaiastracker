@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.data/
+.env*
+!.env.example
+*.tsbuildinfo
+artifacts/
+.gstack/
+.open-next/
+.wrangler/
+.dev.vars*
+.idea/
+.DS_Store
