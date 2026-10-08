@@ -25,6 +25,53 @@ async function upstream(url: string) {
     throw new Error(`Weather source returned ${response.status}`);
   return response;
 }
+export function parsePublicAdvisory(html: string, storm: Storm) {
+  const entities: Record<string, string> = {
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": '"',
+    "&nbsp;": " ",
+    "&#39;": "'",
+  };
+  const raw = html.match(/<pre\b[^>]*>([\s\S]*?)<\/pre>/i)?.[1]
+    ?.replace(/<[^>]*>/g, "")
+    .replace(/&(?:amp|lt|gt|quot|nbsp|#39);/g, (entity) => entities[entity] || entity)
+    .replace(/\r\n/g, "\n");
+  const advisoryNumber = raw?.match(/Advisory Number\s+(\d+[A-Z]?)/i)?.[1];
+  const expected = storm.publicAdvisory?.advNum;
+  if (
+    !raw ||
+    !expected ||
+    !advisoryNumber ||
+    advisoryNumber.replace(/^0+(?=\d)/, "").toUpperCase() !==
+      expected.replace(/^0+(?=\d)/, "").toUpperCase() ||
+    !raw.includes(storm.id.toUpperCase())
+  ) return null;
+  const section = (start: string, end: string) =>
+    raw.split(`\n${start}\n`)[1]?.split(`\n${end}\n`)[0]
+      ?.replace(/^-+\s*/, "").trim() || "";
+  const warnings = section("WATCHES AND WARNINGS", "DISCUSSION AND OUTLOOK");
+  const summary = warnings.split("SUMMARY OF WATCHES AND WARNINGS IN EFFECT:")[1]
+    ?.split(/\n\s*\nA [^\n]+(?:Warning|Watch) means/i)[0]?.trim();
+  const watches = summary || warnings;
+  const hazards = section("HAZARDS AFFECTING LAND", "NEXT ADVISORY");
+  const next = raw.split("\nNEXT ADVISORY\n")[1]?.split("$$")[0]
+    ?.replace(/^-+\s*/, "").trim() || "";
+  return watches && hazards ? { watches, hazards, next } : null;
+}
+async function publicAdvisoryText(storm: Storm) {
+  if (!storm.publicAdvisory?.url || !storm.publicAdvisory.advNum) return null;
+  try {
+    const html = await (await upstream(storm.publicAdvisory.url)).text();
+    if (html.length > 200_000) throw new Error("Public advisory exceeds size limit");
+    return parsePublicAdvisory(html, storm);
+  } catch (error) {
+    console.warn("NHC public advisory unavailable", storm.id,
+      error instanceof Error ? error.message : "Unknown error");
+    return null;
+  }
+}
 // Two missed five-minute runs mark NHC data stale; NWS gets one run plus grace.
 export const NHC_MAX_AGE = 10 * 60_000;
 export const NWS_MAX_AGE = 6 * 60_000;
@@ -88,7 +135,8 @@ async function refreshSnapshot(
 ): Promise<Snapshot> {
   const cached = await getSnapshot(storm);
   if (cached?.track && JSON.stringify(cached.storm) === JSON.stringify(storm)) {
-    const result = { ...cached, fetchedAt };
+    const result = { ...cached, fetchedAt,
+      advisoryText: cached.advisoryText || await publicAdvisoryText(storm) };
     await writeData(storm.id, result);
     return result;
   }
@@ -136,6 +184,7 @@ async function refreshSnapshot(
     track,
     previous,
     fetchedAt,
+    advisoryText: await publicAdvisoryText(storm),
   };
   await writeData(storm.id, result);
   return result;

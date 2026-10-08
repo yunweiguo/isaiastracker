@@ -31,6 +31,10 @@ export default function About() {
           points, forecast track and the official uncertainty cone.
         </li>
         <li>
+          <a href="https://www.nhc.noaa.gov/text/">NHC public advisories</a>:
+          watches, warnings, expected impacts and the next advisory time.
+        </li>
+        <li>
           <a href="https://www.weather.gov/documentation/services-web-api">
             NWS API
           </a>

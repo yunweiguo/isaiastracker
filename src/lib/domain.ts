@@ -63,6 +63,7 @@ export type Snapshot = {
   track: Track | null;
   fetchedAt: string;
   previous: Pick<Storm, "intensity" | "pressure" | "lastUpdate"> | null;
+  advisoryText?: { watches: string; hazards: string; next: string } | null;
 };
 export function hasCityCoverage(storm: Pick<Storm, "id">, citySlug: string) {
   const city = cityBySlug(citySlug);

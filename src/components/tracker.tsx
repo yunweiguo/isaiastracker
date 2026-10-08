@@ -61,6 +61,39 @@ export default function Tracker({
         Official advisory: <Time value={storm.lastUpdate} />. Last successful data
         check: <Time value={snapshot.fetchedAt} />. <TimeZoneSwitch />
       </p>
+      {storm.publicAdvisory?.url && (
+        <section className="nhc-impacts" aria-labelledby="nhc-impacts-heading">
+          <h2 id="nhc-impacts-heading">
+            {active === true && !outdated
+              ? "Current NHC warnings and impacts"
+              : "Warnings and impacts in the saved NHC advisory"}
+          </h2>
+          <p>
+            NHC public advisory {storm.publicAdvisory.advNum || ""}, issued{" "}
+            <Time value={storm.publicAdvisory.issuance || storm.lastUpdate} />.
+            Follow local emergency officials for instructions.
+          </p>
+          {snapshot.advisoryText ? (
+            <>
+              <h3>Watches and warnings</h3>
+              <pre>{snapshot.advisoryText.watches}</pre>
+              <details>
+                <summary>Storm surge, wind, rain, tornadoes and other impacts</summary>
+                <pre>{snapshot.advisoryText.hazards}</pre>
+              </details>
+              {snapshot.advisoryText.next && (
+                <p className="next-advisory">{snapshot.advisoryText.next}</p>
+              )}
+            </>
+          ) : (
+            <p>Official impact details are temporarily unavailable here.</p>
+          )}
+          <a href={storm.publicAdvisory.url}>Open the latest NHC public advisory ↗</a>
+          {storm.forecastDiscussion?.url && (
+            <a href={storm.forecastDiscussion.url}>NHC discussion and key messages ↗</a>
+          )}
+        </section>
+      )}
       <h2 id="forecast-map-heading">
         {stormLabel} {snapshot.track ? "Forecast Path and Cone" : "Forecast Map"}
       </h2>
@@ -149,6 +182,8 @@ export function ForecastTable({ snapshot }: { snapshot: Snapshot }) {
           <h2>Along the forecast path</h2>
           <p>
             Storm-center predictions from the NHC. Times are shown as published.
+            Lead hours follow NHC forecast-cycle labels and may differ from the
+            time elapsed since the current-position row.
           </p>
         </div>
         <span className="source-tag">
@@ -170,7 +205,7 @@ export function ForecastTable({ snapshot }: { snapshot: Snapshot }) {
               {rows.map((row, i) => (
                 <tr key={i}>
                   <td>{row.time}</td>
-                  <td>+{row.hour}h</td>
+                  <td>{row.hour === 0 ? "Current position" : `+${row.hour}h`}</td>
                   <td>
                     {row.wind == null ? "Unavailable" : `${row.wind} mph`}
                   </td>
