@@ -24,6 +24,14 @@ for (const [path, status] of routes) {
     const html = await response.text();
     assert.match(html, /<h1[\s>]/);
     assert.match(html, /rel="canonical"/);
+    if (process.env.FEATURED_STORM_ID === "al092026") {
+      assert.match(html, /<h1>Hurricane Isaias 2026 Tracker<\/h1>/);
+      assert.match(html, /<title>Hurricane Isaias 2026 Tracker/);
+      assert.match(
+        html,
+        /rel="canonical" href="https:\/\/isaiastracker.site\/"/,
+      );
+    }
   } else {
     await response.arrayBuffer();
   }

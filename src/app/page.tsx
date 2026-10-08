@@ -1,58 +1,59 @@
 import Link from "next/link";
 import Tracker, { ChangeSummary } from "@/components/tracker";
-import { getCatalog, getSnapshot, archivedSnapshots } from "@/lib/weather";
+import { featuredStorm, archivedSnapshots } from "@/lib/weather";
 import { formatTime, stormPath } from "@/lib/domain";
 import { metadata } from "@/lib/seo";
 export const dynamic = "force-dynamic";
-async function featured() {
-  const catalog = await getCatalog().catch(() => null);
-  const storm =
-    catalog?.storms.find(
-      (storm) => storm.id === process.env.FEATURED_STORM_ID,
-    ) ||
-    catalog?.storms.find((storm) => storm.id.startsWith("al")) ||
-    catalog?.storms[0];
-  return { catalog, storm };
-}
+const isIsaias = () => process.env.FEATURED_STORM_ID?.trim() === "al092026";
 export async function generateMetadata() {
-  const { storm } = await featured();
+  const { data } = await featuredStorm();
+  const storm = data?.snapshot.storm;
   return metadata(
-    storm
-      ? `${storm.name} Tracker ${storm.id.slice(-4)}: Path Map & Local Alerts`
-      : "Hurricane Tracker: Official Path Maps & Local Alerts",
-    "Track tropical storms with official NHC forecast paths and current storm status. Select your city for local NWS alerts and forecast sources.",
+    isIsaias()
+      ? "Hurricane Isaias 2026 Tracker – Path, Forecast & Updates"
+      : storm
+        ? `${storm.name} ${storm.id.slice(-4)} Tracker – Path & Updates`
+        : "Hurricane Tracker: Official Path Maps & Local Alerts",
+    isIsaias()
+      ? "Follow Isaias 2026 with official NHC path maps, advisory updates and local NWS sources. Saved advisories remain available after the storm ends."
+      : "Explore official NHC storm paths and saved advisories with local NWS sources.",
   );
 }
 export default async function Home() {
-  const { catalog, storm } = await featured();
-  const snapshot = storm ? await getSnapshot(storm) : null;
-  const archives = !storm ? await archivedSnapshots() : [];
+  const { catalog, data } = await featuredStorm();
+  const snapshot = data?.snapshot;
+  const storm = snapshot?.storm;
+  const archives =
+    !storm && !process.env.FEATURED_STORM_ID?.trim()
+      ? await archivedSnapshots()
+      : [];
   return (
     <div className="page-wrap">
       <section className="hero">
         <div>
           <div className="hero-context">
             <span className="status-dot" />{" "}
-            {storm ? `Tracking ${storm.name}` : "Atlantic & eastern Pacific"}
+            {data?.active === false
+              ? "Archived / Last Official Advisory"
+              : data?.active === true
+                ? `Tracking ${storm?.name}`
+                : "Official data status unavailable"}
             <span className="context-divider" />
             {storm ? formatTime(storm.lastUpdate) : "Official NHC forecasts"}
           </div>
           <h1>
-            {storm ? (
-              <>
-                {storm.name} {storm.id.slice(-4)} tracker
-              </>
-            ) : (
-              <>
-                Every storm.
-                <br />
-                <span>A clearer picture.</span>
-              </>
-            )}
+            {isIsaias()
+              ? "Hurricane Isaias 2026 Tracker"
+              : storm
+                ? `${storm.name} ${storm.id.slice(-4)} Tracker`
+                : "Official Hurricane Tracker"}
           </h1>
           <p>
-            Follow the official forecast. Find your city.
-            <br className="desktop-break" /> See what matters where you are.
+            {isIsaias()
+              ? "Explore the Hurricane Isaias 2026 path, official NHC advisories and local weather sources."
+              : "Explore official storm paths, saved advisories and local weather sources."}
+            {data?.active === false &&
+              " The data below is archived, not a live forecast."}
           </p>
         </div>
         <div className="hero-aside">
@@ -72,7 +73,11 @@ export default async function Home() {
       {snapshot ? (
         <>
           <div id="tracker">
-            <Tracker snapshot={snapshot} stale={catalog?.stale} />
+            <Tracker
+              snapshot={snapshot}
+              stale={data?.stale}
+              active={data?.active}
+            />
           </div>
           <div className="below-map">
             <section className="feature-story">
@@ -83,18 +88,18 @@ export default async function Home() {
                 than a center line.
               </h2>
               <p>
-                Explore forecast points, the latest storm status, and changes
-                between saved advisories. Every update links back to its
+                Explore forecast points, the saved official storm status, and
+                changes between saved advisories. Every update links back to its
                 official source.
               </p>
               <Link className="button" href={stormPath(snapshot.storm)}>
-                View {snapshot.storm.name} forecast{" "}
+                View {snapshot.storm.name} advisory details{" "}
                 <span aria-hidden="true">↗</span>
               </Link>
             </section>
             <ChangeSummary snapshot={snapshot} />
           </div>
-          {catalog && catalog.storms.length > 1 && (
+          {catalog && catalog.storms.some((s) => s.id !== storm?.id) && (
             <section className="other-storms">
               <h2>Also being tracked</h2>
               {catalog.storms
@@ -111,14 +116,14 @@ export default async function Home() {
       ) : (
         <section className="empty-state">
           <h2>
-            {catalog
+            {catalog && !process.env.FEATURED_STORM_ID?.trim()
               ? "No active storms in the NHC feed"
               : "Official data is temporarily unavailable"}
           </h2>
           <p>
-            {catalog
-              ? "New storms will appear here when the National Hurricane Center starts issuing advisories."
-              : "We could not load the official storm feed. Please check NHC for current conditions."}
+            {isIsaias()
+              ? "No saved official Isaias 2026 advisory is available. Please check NHC for current conditions; this page does not infer a storm’s existence or intensity."
+              : "No official snapshot is available for the selected storm. Please check NHC for current conditions."}
           </p>
           <a className="button" href="https://www.nhc.noaa.gov/">
             Open the National Hurricane Center ↗

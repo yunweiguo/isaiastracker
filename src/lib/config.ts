@@ -65,3 +65,32 @@ export const cities = [
 export type City = (typeof cities)[number];
 export const cityBySlug = (slug: string) =>
   cities.find((city) => city.slug === slug);
+
+// Only add a storm/city pair after reviewing official geographic evidence or
+// publishing independent local content. Empty by default; browsing still works.
+export const cityCoverage: Record<
+  string,
+  Partial<
+    Record<
+      City["slug"],
+      {
+        summary: string;
+        sourceUrl: string;
+      }
+    >
+  >
+> = {};
+
+// Public build-time settings. Browser tile tokens must be domain-restricted.
+export const mapTiles = {
+  url:
+    process.env.NEXT_PUBLIC_MAP_TILE_URL ||
+    (process.env.NODE_ENV === "development"
+      ? "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      : ""),
+  attribution:
+    process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
+    (process.env.NODE_ENV === "development"
+      ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      : ""),
+};

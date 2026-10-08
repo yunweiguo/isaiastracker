@@ -25,22 +25,25 @@ async function upstream(url: string) {
     throw new Error(`Weather source returned ${response.status}`);
   return response;
 }
-let catalogFlight: Promise<Catalog> | null = null;
-export function getCatalog(force = false): Promise<Catalog> {
-  if (catalogFlight) return catalogFlight;
-  catalogFlight = loadCatalog(force).finally(() => {
-    catalogFlight = null;
-  });
-  return catalogFlight;
+// Two missed five-minute runs mark NHC data stale; NWS gets one run plus grace.
+export const NHC_MAX_AGE = 10 * 60_000;
+export const NWS_MAX_AGE = 6 * 60_000;
+export function isStale(fetchedAt: string, maxAge = NHC_MAX_AGE) {
+  const age = Date.now() - Date.parse(fetchedAt);
+  return !Number.isFinite(age) || age < 0 || age >= maxAge;
 }
-async function loadCatalog(force: boolean): Promise<Catalog> {
+export async function getCatalog(): Promise<Catalog> {
+  const saved = await readData<Catalog>("catalog");
+  if (!saved)
+    throw new Error("Official storm data is temporarily unavailable.");
+  return { ...saved, stale: saved.stale || isStale(saved.fetchedAt) };
+}
+export async function getSnapshot(storm: Storm): Promise<Snapshot | null> {
+  return readData<Snapshot>(storm.id);
+}
+// Only the scheduled refresh and explicit local refresh command call writers.
+export async function refreshCatalog(): Promise<Catalog> {
   const previous = await readData<Catalog>("catalog");
-  if (
-    !force &&
-    previous &&
-    Date.now() - Date.parse(previous.fetchedAt) < 300_000
-  )
-    return { ...previous, stale: false };
   try {
     const source = catalogSchema.parse(
       await (
@@ -52,6 +55,20 @@ async function loadCatalog(force: boolean): Promise<Catalog> {
       fetchedAt: new Date().toISOString(),
       stale: false,
     };
+    // Publish the catalog after snapshots so readers never depend on a pending write.
+    await Promise.all(
+      catalog.storms.map(async (storm) => {
+        try {
+          await refreshSnapshot(storm);
+        } catch (error) {
+          console.warn(
+            "NHC snapshot unavailable",
+            storm.id,
+            error instanceof Error ? error.message : "Unknown error",
+          );
+        }
+      }),
+    );
     await writeData("catalog", catalog);
     return catalog;
   } catch (error) {
@@ -65,18 +82,13 @@ async function loadCatalog(force: boolean): Promise<Catalog> {
     );
   }
 }
-const flights = new Map<string, Promise<Snapshot>>();
-export async function getSnapshot(storm: Storm): Promise<Snapshot> {
-  const inflight = flights.get(storm.id);
-  if (inflight) return inflight;
-  const flight = loadSnapshot(storm).finally(() => flights.delete(storm.id));
-  flights.set(storm.id, flight);
-  return flight;
-}
-async function loadSnapshot(storm: Storm): Promise<Snapshot> {
-  const cached = await readData<Snapshot>(storm.id);
-  if (cached?.track && JSON.stringify(cached.storm) === JSON.stringify(storm))
-    return cached;
+async function refreshSnapshot(storm: Storm): Promise<Snapshot> {
+  const cached = await getSnapshot(storm);
+  if (cached?.track && JSON.stringify(cached.storm) === JSON.stringify(storm)) {
+    const result = { ...cached, fetchedAt: new Date().toISOString() };
+    await writeData(storm.id, result);
+    return result;
+  }
   let track: Track | null = null;
   try {
     if (storm.forecastTrack?.zipFile) {
@@ -101,13 +113,9 @@ async function loadSnapshot(storm: Storm): Promise<Snapshot> {
       "NHC track refresh failed",
       error instanceof Error ? error.message : "Unknown error",
     );
-    // Only reuse a geometry set when its source product is unchanged.
-    if (
-      cached?.storm.forecastTrack?.zipFile === storm.forecastTrack?.zipFile &&
-      cached?.storm.forecastTrack?.fileUpdateTime ===
-        storm.forecastTrack?.fileUpdateTime
-    )
-      track = cached?.track || null;
+    // Keep the complete last-good advisory and geometry together on failure.
+    if (cached) return cached;
+    throw error;
   }
   const previous =
     cached && cached.storm.lastUpdate !== storm.lastUpdate
@@ -139,21 +147,35 @@ export async function resolveStorm(id: string) {
   if (!stormIdSchema.safeParse(id).success) return null;
   const catalog = await getCatalog().catch(() => null);
   const storm = catalog?.storms.find((storm) => storm.id === id);
-  if (storm)
-    return {
-      snapshot: await getSnapshot(storm),
-      active: true,
-      stale: catalog!.stale,
-    };
-  const snapshot = await readData<Snapshot>(id);
+  const snapshot = storm
+    ? await getSnapshot(storm)
+    : await readData<Snapshot>(id);
   return snapshot
     ? {
         snapshot,
-        active: catalog ? false : null,
-        stale: !catalog || catalog.stale,
+        active: catalog ? Boolean(storm) : null,
+        stale:
+          !catalog ||
+          catalog.stale ||
+          Boolean(
+            storm &&
+            (isStale(snapshot.fetchedAt) ||
+              JSON.stringify(snapshot.storm) !== JSON.stringify(storm)),
+          ),
       }
     : null;
 }
+export async function featuredStorm() {
+  const catalog = await getCatalog().catch(() => null);
+  const id = process.env.FEATURED_STORM_ID?.trim();
+  const storm = id
+    ? catalog?.storms.find((storm) => storm.id === id)
+    : catalog?.storms.find((storm) => storm.id.startsWith("al")) ||
+      catalog?.storms[0];
+  const data = id || storm ? await resolveStorm(id || storm!.id) : null;
+  return { catalog, data };
+}
+
 export async function resolvePage(year: string, slug: string) {
   const id = slug.match(/((?:al|ep|cp)\d{6})$/)?.[1];
   if (!id || year !== id.slice(-4)) return null;
@@ -179,8 +201,16 @@ export async function getAlerts(slug: string): Promise<AlertResult> {
   const city = cityBySlug(slug);
   if (!city) throw new Error("Unknown city");
   const cached = await readData<AlertResult>(`alerts-${slug}`);
-  if (cached && Date.now() - Date.parse(cached.fetchedAt) < 120_000)
-    return cached;
+  if (!cached) throw new Error("Local alerts are temporarily unavailable.");
+  return {
+    ...cached,
+    stale: cached.stale || isStale(cached.fetchedAt, NWS_MAX_AGE),
+  };
+}
+export async function refreshAlerts(slug: string): Promise<AlertResult> {
+  const city = cityBySlug(slug);
+  if (!city) throw new Error("Unknown city");
+  const cached = await readData<AlertResult>(`alerts-${slug}`);
   try {
     const data = await (
       await upstream(
@@ -192,7 +222,16 @@ export async function getAlerts(slug: string): Promise<AlertResult> {
     const alerts: Alert[] = data.features.map(
       (feature: { id: string; properties: Record<string, unknown> }) => {
         const p = feature.properties;
-        if (!p || typeof p.event !== "string" || typeof p.expires !== "string")
+        if (
+          !p ||
+          typeof feature.id !== "string" ||
+          !feature.id ||
+          typeof p.event !== "string" ||
+          typeof p.sent !== "string" ||
+          !Number.isFinite(Date.parse(p.sent)) ||
+          typeof p.expires !== "string" ||
+          !Number.isFinite(Date.parse(p.expires))
+        )
           throw new Error("Invalid alert");
         return {
           id: feature.id,

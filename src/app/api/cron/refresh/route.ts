@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     return Response.json(
       {
         error:
-          "Refresh or indexing failed. Previous weather data was retained.",
+          "Weather refresh failed. Last-good data was retained; indexing runs separately.",
       },
       { status: 503 },
     );

@@ -1,10 +1,11 @@
+import { createHash } from "node:crypto";
 import { siteUrl, isPublicSite, cities } from "./config";
-import { hasCityCoverage, stormPath, type Storm } from "./domain";
+import { stormUrls, type Catalog, type Snapshot, type Storm } from "./domain";
 import {
   archivedSnapshots,
   getAlerts,
-  getCatalog,
-  getSnapshot,
+  refreshCatalog,
+  refreshAlerts,
   readData,
   writeData,
   type AlertResult,
@@ -42,14 +43,6 @@ export function indexNowPayload(origin: string, key: string, paths: string[]) {
     keyLocation: `${base.origin}/${key}.txt`,
     urlList: urls,
   };
-}
-export function stormUrls(storm: Storm) {
-  return [
-    stormPath(storm),
-    ...(hasCityCoverage(storm)
-      ? cities.map((city) => `${stormPath(storm)}/${city.slug}`)
-      : []),
-  ];
 }
 export async function submitIndexNow(paths: string[]) {
   if (!isPublicSite || process.env.INDEXNOW_ENABLED !== "true")
@@ -106,52 +99,127 @@ export function refreshWeather() {
   });
   return refreshFlight;
 }
-async function runRefresh() {
-  const catalog = await getCatalog(true);
-  if (catalog.stale)
-    throw new Error("Official source unavailable; retained previous data");
-  await Promise.all(catalog.storms.map((storm) => getSnapshot(storm)));
-  const localAlerts = await Promise.all(
-    cities.map(async (city) => {
-      const result = await getAlerts(city.slug).catch(() => null);
-      return [city.slug, result?.alerts || null] as const;
-    }),
+type PageSignatures = Record<string, string>;
+const fingerprint = (value: unknown) =>
+  createHash("sha256").update(JSON.stringify(value)).digest("hex");
+
+export function indexablePageSignatures(
+  snapshots: Snapshot[],
+  catalog: Catalog,
+  alerts: Record<string, AlertResult["alerts"] | null>,
+  featuredId = process.env.FEATURED_STORM_ID?.trim(),
+) {
+  const pages: PageSignatures = {};
+  for (const snapshot of snapshots) {
+    const active = catalog.storms.some(
+      (storm) => storm.id === snapshot.storm.id,
+    );
+    const content = {
+      storm: snapshot.storm,
+      track: snapshot.track,
+      previous: snapshot.previous,
+      active,
+    };
+    const [path, ...cityPaths] = stormUrls(snapshot.storm, active);
+    pages[path] = fingerprint(content);
+    for (const cityPath of cityPaths) {
+      const slug = cityPath.split("/").at(-1)!;
+      const local = alerts[slug];
+      pages[cityPath] = fingerprint({
+        content,
+        alerts: local
+          ? [...local]
+              .filter((alert) => Date.parse(alert.expires) > Date.now())
+              .sort((a, b) => a.id.localeCompare(b.id))
+          : null,
+      });
+    }
+  }
+  const featured = featuredId
+    ? snapshots.find((snapshot) => snapshot.storm.id === featuredId)
+    : snapshots.find(
+        (snapshot) =>
+          snapshot.storm.id ===
+          (
+            catalog.storms.find((storm) => storm.id.startsWith("al")) ||
+            catalog.storms[0]
+          )?.id,
+      );
+  pages["/"] = fingerprint(
+    featured
+      ? { page: pages[stormUrls(featured.storm, false)[0]], featuredId }
+      : { unavailable: true, featuredId },
   );
-  const alerts = Object.fromEntries(localAlerts);
-  const signature = JSON.stringify({ storms: catalog.storms, alerts });
-  const submitted = await readData<{
-    signature: string;
-    storms: Storm[];
-    alerts?: Record<string, AlertResult["alerts"] | null>;
-  }>("indexnow-submitted");
-  if (submitted?.signature === signature)
-    return { storms: catalog.storms.length, indexNow: "unchanged" };
-  const snapshots = await archivedSnapshots();
-  const changed = snapshots.filter((snapshot) => {
-    const current = catalog.storms.find(
-      (storm) => storm.id === snapshot.storm.id,
-    );
-    const old = submitted?.storms.find(
-      (storm) => storm.id === snapshot.storm.id,
-    );
-    return (
-      JSON.stringify(current) !== JSON.stringify(old) ||
-      !submitted ||
-      JSON.stringify(alerts) !== JSON.stringify(submitted.alerts)
-    );
-  });
-  const result = await submitIndexNow([
-    "/",
-    ...changed.flatMap((snapshot) => stormUrls(snapshot.storm)),
+  return pages;
+}
+export function changedPages(
+  current: PageSignatures,
+  previous: PageSignatures,
+) {
+  return Object.keys(current).filter(
+    (path) => current[path] !== previous[path],
+  );
+}
+async function runRefresh() {
+  // NWS can still refresh when NHC is down, and vice versa.
+  const [catalogResult] = await Promise.all([
+    refreshCatalog().catch(() => null),
+    ...cities.map((city) => refreshAlerts(city.slug).catch(() => null)),
   ]);
-  if (
-    result.status === "received" ||
-    result.status === "pending-key-validation"
-  )
-    await writeData("indexnow-submitted", {
-      signature,
-      storms: catalog.storms,
-      alerts,
-    });
-  return { storms: catalog.storms.length, indexNow: result };
+  if (!catalogResult || catalogResult.stale)
+    throw new Error("Official source unavailable; retained previous NHC data");
+  const catalog = catalogResult;
+  // Indexing is best-effort, after every weather write has finished.
+  try {
+    const alerts = Object.fromEntries(
+      await Promise.all(
+        cities.map(
+          async (city) =>
+            [
+              city.slug,
+              (await getAlerts(city.slug).catch(() => null))?.alerts || null,
+            ] as const,
+        ),
+      ),
+    );
+    const snapshots = await archivedSnapshots();
+    const pages = indexablePageSignatures(snapshots, catalog, alerts);
+    const submitted = await readData<{
+      pages?: PageSignatures;
+      storms?: Storm[];
+    }>("indexnow-submitted");
+    // On first run (or migration), baseline archives instead of resubmitting the archive.
+    const previous =
+      submitted?.pages ||
+      Object.fromEntries(
+        snapshots
+          .filter(
+            (snapshot) =>
+              !catalog.storms.some((storm) => storm.id === snapshot.storm.id) &&
+              !submitted?.storms?.some(
+                (storm) => storm.id === snapshot.storm.id,
+              ),
+          )
+          .map((snapshot) => {
+            const path = stormUrls(snapshot.storm, false)[0];
+            return [path, pages[path]];
+          }),
+      );
+    const changed = changedPages(pages, previous);
+    if (!changed.length)
+      return { storms: catalog.storms.length, indexNow: "unchanged" };
+    const result = await submitIndexNow(changed);
+    if (
+      result.status === "received" ||
+      result.status === "pending-key-validation"
+    )
+      await writeData("indexnow-submitted", { pages });
+    return { storms: catalog.storms.length, indexNow: result };
+  } catch (error) {
+    console.warn(
+      "IndexNow submission failed",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+    return { storms: catalog.storms.length, indexNow: { status: "failed" } };
+  }
 }
