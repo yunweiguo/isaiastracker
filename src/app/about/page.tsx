@@ -41,14 +41,16 @@ export default function About() {
       <h2>Freshness and saved forecasts</h2>
       <p>
         The tracker checks for updates about every five minutes when its
-        scheduled refresh is running. Local alerts are cached for up to two
-        minutes. Source publication times are shown separately from alert
-        retrieval times. Weather products can be published at different times.
+        scheduled refresh is running. NHC data is marked stale after ten minutes
+        without a successful check; local alerts after six minutes. Source
+        publication times are shown separately from alert retrieval times.
+        Weather products can be published at different times.
       </p>
       <p>
         If a source is unavailable, the site may show the last saved data with a
         warning. Advisories older than nine hours are flagged. A storm absent
-        from the latest NHC active list is displayed as an archive. A saved
+        from a fresh NHC active list is displayed as an archive. When that list
+        is missing or stale, current storm activity is unconfirmed. A saved
         forecast is not a statement about current conditions.
       </p>
       <h2 id="forecast-cone">What the forecast cone means</h2>

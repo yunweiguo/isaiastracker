@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { cityBySlug } from "@/lib/config";
+import { cityBySlug, cityCoverage } from "@/lib/config";
 import { getAlerts, resolvePage } from "@/lib/weather";
-import { formatTime, hasCityCoverage, stormPath } from "@/lib/domain";
+import { formatTime, canIndexCity, stormPath } from "@/lib/domain";
 import { metadata } from "@/lib/seo";
 import Tracker from "@/components/tracker";
 export const dynamic = "force-dynamic";
@@ -11,14 +11,14 @@ export async function generateMetadata({ params }: Props) {
   const { year, slug, city: citySlug } = await params;
   const city = cityBySlug(citySlug),
     data = await resolvePage(year, slug);
-  if (!city || !data || !hasCityCoverage(data.snapshot.storm))
+  if (!city || !data || !data.snapshot.storm.id.startsWith("al"))
     return { title: "Location not found", robots: { index: false } };
   const result = metadata(
-    `${data.snapshot.storm.name} ${year} in ${city.name}: Forecast & Local Alerts`,
-    `See the official ${data.snapshot.storm.name} path near ${city.name}, ${city.state}, with current local NWS alerts and forecast sources.`,
+    `${data.snapshot.storm.name} ${year} ${data.active === false ? "Archive" : "Map"} & ${city.name} Weather Sources`,
+    `Compare the saved ${data.snapshot.storm.name} track with ${city.name}, ${city.state}. Local NWS alerts cover all hazards; a connection to this storm is not assumed.`,
     `${stormPath(data.snapshot.storm)}/${city.slug}`,
   );
-  return data.active === true
+  return canIndexCity(data.snapshot.storm, city.slug, data.active)
     ? result
     : { ...result, robots: { index: false, follow: true } };
 }
@@ -27,11 +27,12 @@ export default async function CityPage({ params }: Props) {
   const city = cityBySlug(citySlug);
   if (!city) notFound();
   const data = await resolvePage(year, slug);
-  if (!data || !hasCityCoverage(data.snapshot.storm)) notFound();
+  if (!data || !data.snapshot.storm.id.startsWith("al")) notFound();
   const { snapshot } = data,
     path = stormPath(snapshot.storm);
   if (`${path}/${city.slug}` !== `/storms/${year}/${slug}/${city.slug}`)
     permanentRedirect(`${path}/${city.slug}`);
+  const coverage = cityCoverage[snapshot.storm.id]?.[city.slug];
   const result = await getAlerts(city.slug).catch(() => null);
   const alerts =
     result?.alerts.filter((a) => Date.parse(a.expires) > Date.now()) || [];
@@ -54,10 +55,18 @@ export default async function CityPage({ params }: Props) {
           {snapshot.storm.name} in {city.name}
         </h1>
         <p>
-          The forecast near your city, with direct access to local official
-          guidance.
+          {data.active === false
+            ? "Archived storm map with separate local weather sources."
+            : "Compare the saved storm map with your city and consult local official guidance."}{" "}
+          A city marker does not establish that this storm will affect the city.
         </p>
       </section>
+      {coverage && (
+        <p>
+          {coverage.summary}{" "}
+          <a href={coverage.sourceUrl}>Local context source</a>
+        </p>
+      )}
       <section className="local-brief">
         <div>
           <h2>Local alerts for {city.name}</h2>
@@ -109,8 +118,9 @@ export default async function CityPage({ params }: Props) {
       {result && (
         <p className="muted small">
           Alerts checked {formatTime(result.fetchedAt, city.zone)}. These are
-          current local alerts for all hazards, not exclusively{" "}
-          {snapshot.storm.name} advisories.
+          saved local alerts for all hazards. We have not verified a connection
+          between these alerts and {snapshot.storm.name}. They are not
+          historical alerts associated with the saved storm advisory.
         </p>
       )}
       <Tracker

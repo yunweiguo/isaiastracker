@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cities, cityBySlug, cityCoverage } from "./config";
 import type { FeatureCollection } from "geojson";
 
 export const stormIdSchema = z.string().regex(/^(al|ep|cp)\d{6}$/);
@@ -63,8 +64,27 @@ export type Snapshot = {
   fetchedAt: string;
   previous: Pick<Storm, "intensity" | "pressure" | "lastUpdate"> | null;
 };
-export const hasCityCoverage = (storm: Pick<Storm, "id">) =>
-  storm.id.startsWith("al");
+export function hasCityCoverage(storm: Pick<Storm, "id">, citySlug: string) {
+  const city = cityBySlug(citySlug);
+  return Boolean(
+    storm.id.startsWith("al") && city && cityCoverage[storm.id]?.[city.slug],
+  );
+}
+export function canIndexCity(
+  storm: Pick<Storm, "id">,
+  citySlug: string,
+  active: boolean | null,
+) {
+  return active === true && hasCityCoverage(storm, citySlug);
+}
+export function stormUrls(storm: Storm, active: boolean | null) {
+  return [
+    stormPath(storm),
+    ...cities
+      .filter((city) => canIndexCity(storm, city.slug, active))
+      .map((city) => `${stormPath(storm)}/${city.slug}`),
+  ];
+}
 export function stormPath(storm: Pick<Storm, "id" | "name">) {
   return `/storms/${storm.id.slice(-4)}/${storm.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${storm.id}`;
 }
@@ -103,6 +123,7 @@ export function formatTime(value: string, zone = "UTC") {
   return Number.isNaN(date.getTime())
     ? "Time unavailable"
     : new Intl.DateTimeFormat("en-US", {
+        year: "numeric",
         month: "short",
         day: "numeric",
         hour: "numeric",

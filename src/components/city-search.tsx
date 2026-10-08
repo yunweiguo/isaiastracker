@@ -47,7 +47,10 @@ export default function CitySearch({
             key={city.slug}
             href={`${path}/${city.slug}`}
             className={selected === city.slug ? "selected" : ""}
-            onClick={() => trackEvent("Select city", { city: city.slug })}
+            onClick={() => {
+              if (selected !== city.slug)
+                trackEvent("select_city", { city: city.slug });
+            }}
           >
             <span>
               {city.name}

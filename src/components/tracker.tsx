@@ -3,7 +3,6 @@ import StormMap from "./storm-map";
 import CitySearch from "./city-search";
 import Refresh from "./refresh";
 import {
-  hasCityCoverage,
   classification,
   forecastRows,
   formatTime,
@@ -11,6 +10,7 @@ import {
   stormPath,
   type Snapshot,
 } from "@/lib/domain";
+import { isStale } from "@/lib/weather";
 import type { City } from "@/lib/config";
 export default function Tracker({
   snapshot,
@@ -25,7 +25,9 @@ export default function Tracker({
 }) {
   const { storm } = snapshot;
   const outdated =
-    stale || Date.now() - Date.parse(storm.lastUpdate) > 9 * 3600_000;
+    stale ||
+    (active === true && isStale(snapshot.fetchedAt)) ||
+    Date.now() - Date.parse(storm.lastUpdate) > 9 * 3600_000;
   return (
     <>
       <Refresh />
@@ -40,13 +42,23 @@ export default function Tracker({
       {(outdated || active !== true) && (
         <div className="notice" role="status">
           {active === false
-            ? "Archived storm. This map shows its last saved forecast, not current conditions."
+            ? "Archived / Last Official Advisory. This map shows the last saved official forecast, not current conditions."
             : active === null
               ? "Live status could not be verified. Showing the last saved official data."
               : "This forecast may be out of date. Check the latest NHC advisory before making decisions."}{" "}
           <a href="https://www.nhc.noaa.gov/">Open NHC</a>
         </div>
       )}
+      {stale && active !== true && (
+        <p className="notice" role="status">
+          Scheduled weather checks are overdue or unavailable. Verify current
+          conditions with NHC.
+        </p>
+      )}
+      <p className="product-time">
+        Official advisory: {formatTime(storm.lastUpdate)}. Last successful data
+        check: {formatTime(snapshot.fetchedAt)}.
+      </p>
       <section className="tracker-shell" aria-label="Storm tracker">
         <StormMap snapshot={snapshot} city={city} />
         <aside className="tracker-sidebar">
@@ -56,7 +68,7 @@ export default function Tracker({
             </span>
             <div>
               <h2>{storm.name}</h2>
-              <p>{classification(storm)}</p>
+              <p>Official classification: {classification(storm)}</p>
             </div>
           </div>
           <dl className="storm-stats">
@@ -81,7 +93,7 @@ export default function Tracker({
             <br />
             <span>Reported {formatTime(storm.lastUpdate)}</span>
           </p>
-          {hasCityCoverage(storm) ? (
+          {storm.id.startsWith("al") ? (
             <CitySearch path={stormPath(storm)} selected={city?.slug} />
           ) : (
             <p className="muted small">
@@ -106,8 +118,8 @@ export default function Tracker({
       </p>
       {!snapshot.track && (
         <p className="notice">
-          Forecast map layers are temporarily unavailable. The position above
-          comes from the latest available advisory.
+          Forecast track, cone and points are temporarily unavailable. The
+          position above comes from the saved official advisory.
         </p>
       )}
     </>
@@ -201,10 +213,7 @@ export function ChangeSummary({ snapshot }: { snapshot: Snapshot }) {
           </dl>
         </>
       ) : (
-        <p>
-          We are collecting official updates for this storm. A comparison will
-          appear after the next advisory is saved.
-        </p>
+        <p>No previous advisory comparison is available in the saved data.</p>
       )}
       <p className="muted">
         Changes describe official observations and forecasts, not an independent

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type * as Leaflet from "leaflet";
 import type { Snapshot } from "@/lib/domain";
 import { forecastRows, knotsToMph } from "@/lib/domain";
-import type { City } from "@/lib/config";
+import { mapTiles, type City } from "@/lib/config";
 import { trackEvent } from "./analytics";
 
 export default function StormMap({
@@ -20,6 +20,8 @@ export default function StormMap({
   const [cone, setCone] = useState(true);
   const [index, setIndex] = useState(0);
   const [error, setError] = useState(false);
+  const [tileError, setTileError] = useState(false);
+  const lastExplored = useRef(0);
   const points = forecastRows(snapshot.track);
   useEffect(() => {
     let cancelled = false;
@@ -35,19 +37,22 @@ export default function StormMap({
         });
         mapRef.current = map;
         setIndex(0);
+        lastExplored.current = 0;
         setCone(true);
+        setTileError(false);
+        setError(false);
         L.control.zoom({ position: "topright" }).addTo(map);
-        L.tileLayer(
-          process.env.NEXT_PUBLIC_MAP_TILE_URL ||
-            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-          {
-            attribution:
-              process.env.NEXT_PUBLIC_MAP_ATTRIBUTION ||
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        if (mapTiles.url && mapTiles.attribution) {
+          L.tileLayer(mapTiles.url, {
+            attribution: mapTiles.attribution,
             maxZoom: 15,
             className: "base-tiles",
-          },
-        ).addTo(map);
+          })
+            .on("tileerror", () => {
+              if (!cancelled) setTileError(true);
+            })
+            .addTo(map);
+        }
         const stormCoordinates: Leaflet.LatLngExpression = [
           storm.latitudeNumeric,
           storm.longitudeNumeric,
@@ -125,13 +130,16 @@ export default function StormMap({
           })
             .addTo(map)
             .bindTooltip(city.name, { permanent: true, direction: "top" });
-        setError(false);
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
     return () => {
       cancelled = true;
       map?.remove();
       mapRef.current = null;
+      coneRef.current = null;
+      positionRef.current = null;
     };
   }, [snapshot, city]);
   useEffect(() => {
@@ -150,6 +158,12 @@ export default function StormMap({
         .setLatLng([coordinates[1], coordinates[0]])
         .addTo(mapRef.current);
   }
+  function finishExplore(value: number) {
+    if (value !== lastExplored.current) {
+      trackEvent("explore_forecast");
+      lastExplored.current = value;
+    }
+  }
   return (
     <div className="map-panel">
       <div
@@ -164,6 +178,12 @@ export default function StormMap({
           the forecast.
         </div>
       )}
+      {!error && (!mapTiles.url || !mapTiles.attribution || tileError) && (
+        <p className="map-error" role="status">
+          The background map is unavailable. Saved NHC data and official source
+          links remain available.
+        </p>
+      )}
       <div className="map-key">
         <span>
           <i className="key-line" /> Forecast track
@@ -172,9 +192,10 @@ export default function StormMap({
           <input
             type="checkbox"
             checked={cone}
+            disabled={!snapshot.track}
             onChange={(e) => {
               setCone(e.target.checked);
-              trackEvent("Toggle cone");
+              trackEvent("toggle_cone");
             }}
           />{" "}
           Forecast cone
@@ -186,7 +207,9 @@ export default function StormMap({
           <span>
             {points[index]?.wind != null
               ? `${points[index].wind} mph forecast wind`
-              : "Official NHC forecast"}
+              : snapshot.track
+                ? "Official NHC forecast"
+                : "Forecast track unavailable"}
           </span>
         </div>
         <input
@@ -197,7 +220,23 @@ export default function StormMap({
           value={index}
           disabled={points.length < 2}
           onChange={(e) => move(Number(e.target.value))}
-          onPointerUp={() => trackEvent("Explore forecast")}
+          onPointerUp={(e) => finishExplore(Number(e.currentTarget.value))}
+          onKeyUp={(e) => {
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(e.key)
+            )
+              finishExplore(Number(e.currentTarget.value));
+          }}
+          onBlur={(e) => finishExplore(Number(e.currentTarget.value))}
         />
         <div className="timeline-ends">
           <span>Forecast start</span>

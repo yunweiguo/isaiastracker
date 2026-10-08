@@ -13,8 +13,8 @@ export async function generateMetadata({ params }: Props) {
   if (!data) return { title: "Storm not found", robots: { index: false } };
   const s = data.snapshot.storm;
   return metadata(
-    `${s.name} ${year} Forecast: Path, Wind & Advisory Updates`,
-    `View the ${s.name} ${year} NHC forecast path, forecast wind speeds and changes between saved advisories.`,
+    `${s.name} ${year} ${data.active === false ? "Archive" : "NHC Advisory"}: Forecast Table & Changes`,
+    `Read ${s.name} ${year} ${data.active === false ? "archived" : "saved"} NHC advisory details, forecast points and changes between advisories.`,
     stormPath(s),
   );
 }
@@ -41,9 +41,14 @@ export default async function StormPage({ params }: Props) {
           {formatTime(s.lastUpdate)}
         </p>
         <h1>
-          {s.name} {year} forecast
+          {s.name} {year}{" "}
+          {data.active === false ? "advisory archive" : "NHC advisory details"}
         </h1>
-        <p>The official path, forecast wind speeds, and what changed.</p>
+        <p>
+          {data.active === false
+            ? "Historical forecast points from the last saved official advisory; not current conditions."
+            : "The saved official forecast table, advisory sources, and changes between advisories."}
+        </p>
       </section>
       <Tracker snapshot={snapshot} stale={data.stale} active={data.active} />
       <ForecastTable snapshot={snapshot} />

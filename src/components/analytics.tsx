@@ -16,10 +16,14 @@ declare global {
   }
 }
 export function trackEvent(
-  event: string,
+  event: "select_city" | "toggle_cone" | "explore_forecast",
   properties: Record<string, string> = {},
 ) {
-  window.plausible?.(event, { props: properties });
+  try {
+    window.plausible?.(event, { props: properties });
+  } catch {
+    /* A failed provider must not block navigation or the other provider. */
+  }
   try {
     window.gtag?.("event", event, properties);
   } catch {

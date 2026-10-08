@@ -15,6 +15,8 @@ import {
 import { indexNowPayload } from "../src/lib/indexnow";
 import {
   getCatalog,
+  refreshCatalog,
+  refreshAlerts,
   getAlerts,
   writeData,
   resolvePage,
@@ -210,7 +212,7 @@ test("weather, indexing and failure paths", async (t) => {
         globalThis.fetch = async () => {
           throw new Error("Network offline");
         };
-        const fallback = await getCatalog(true);
+        const fallback = await refreshCatalog();
         assert.equal(fallback.stale, true);
         assert.equal(fallback.storms.length, 1);
         await assert.rejects(getAlerts("unsupported-city"));
@@ -219,11 +221,11 @@ test("weather, indexing and failure paths", async (t) => {
           assert.equal(options?.redirect, "manual");
           return Response.json({ activeStorms: [] });
         };
-        const empty = await getCatalog(true);
+        const empty = await refreshCatalog();
         assert.equal(empty.stale, false);
         assert.equal(empty.storms.length, 0);
         globalThis.fetch = async () => Response.json({ features: [] });
-        const alerts = await getAlerts("pensacola");
+        const alerts = await refreshAlerts("pensacola");
         assert.equal(alerts.alerts.length, 0);
         assert.equal(alerts.stale, false);
         await writeData("alerts-pensacola", {
