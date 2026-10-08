@@ -180,8 +180,8 @@ export default function StormMap({
       )}
       {!error && (!mapTiles.url || !mapTiles.attribution || tileError) && (
         <p className="map-error" role="status">
-          The background map is unavailable. Saved NHC layers, weather text and
-          official source links remain available.
+          The background map is unavailable. Saved NHC data and official source
+          links remain available.
         </p>
       )}
       <div className="map-key">
@@ -207,7 +207,9 @@ export default function StormMap({
           <span>
             {points[index]?.wind != null
               ? `${points[index].wind} mph forecast wind`
-              : "Official NHC forecast"}
+              : snapshot.track
+                ? "Official NHC forecast"
+                : "Forecast track unavailable"}
           </span>
         </div>
         <input

@@ -101,7 +101,11 @@ export default async function Home() {
           </div>
           {catalog && catalog.storms.some((s) => s.id !== storm?.id) && (
             <section className="other-storms">
-              <h2>Also being tracked</h2>
+              <h2>
+                {catalog.stale
+                  ? "Storms in the last saved NHC feed"
+                  : "Also being tracked"}
+              </h2>
               {catalog.storms
                 .filter((s) => s.id !== storm?.id)
                 .map((s) => (
@@ -116,7 +120,10 @@ export default async function Home() {
       ) : (
         <section className="empty-state">
           <h2>
-            {catalog && !process.env.FEATURED_STORM_ID?.trim()
+            {catalog &&
+            !catalog.stale &&
+            !catalog.storms.length &&
+            !process.env.FEATURED_STORM_ID?.trim()
               ? "No active storms in the NHC feed"
               : "Official data is temporarily unavailable"}
           </h2>

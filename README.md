@@ -59,10 +59,23 @@ Set `NHC_USER_AGENT` to identify the app and provide a real contact address. Loc
 
 Before a production build:
 
-1. Choose a raster XYZ provider whose terms permit this site's commercial use and expected traffic. Confirm its plan, request quota and overage price with that provider; this project assumes no free production allowance and does not select a proxy.
+1. Choose a raster XYZ provider whose terms permit this site's commercial use and expected traffic. A paid service is not required by the code: a compliant free allowance may suffice. Confirm its account requirements, quota and any overage price before enabling it; this project does not open an account, purchase a plan or select a proxy.
 2. Set `NEXT_PUBLIC_MAP_TILE_URL` to its HTTPS `{z}/{x}/{y}` endpoint and `NEXT_PUBLIC_MAP_ATTRIBUTION` to its required attribution HTML in the **build environment** (or ignored `.env.local`). Both values are compiled into the browser bundle; setting only Wrangler runtime vars is insufficient.
 3. If the provider requires a browser token, restrict it to `isaiastracker.site` and the required read-only tile scope. Do not use a private/server API key or commit the token. Rebuild after changing the provider.
 4. Check attribution, tile errors and usage limits before enabling public traffic. Do not prefetch tiles or remove attribution.
+
+For Cloudflare Workers Builds, set both public map variables in the build environment before `pnpm build:cf`; for a local build, export them in the shell or use ignored `.env.local`. OpenNext runs the Next.js production build and copies its compiled client assets. Worker runtime variables and `.dev.vars` cannot change the tile URL already embedded in those assets. Rebuild and redeploy after a change. Public browser tokens are visible to visitors even when stored as build secrets; a provider requiring a private key is unsuitable for this direct browser integration.
+
+To verify injection locally without a provider account or external tile requests, use a deliberately non-routable test endpoint (never deploy this build):
+
+```sh
+NEXT_PUBLIC_MAP_TILE_URL='https://tiles.invalid/isaias-build-check/{z}/{x}/{y}.png' \
+NEXT_PUBLIC_MAP_ATTRIBUTION='Local build verification only' pnpm build:cf
+rg -l --fixed-strings 'https://tiles.invalid/isaias-build-check/' .open-next/assets/_next/static
+rg -l --fixed-strings 'Local build verification only' .open-next/assets/_next/static
+```
+
+Both searches must find a compiled JavaScript asset. Run `pnpm preview:cf --port 8787` and inspect the map with a saved snapshot in **local** R2: failed tiles should show a notice while the NHC layers, SSR advisory and links still work. To verify the unconfigured case, rebuild with both variables explicitly empty (`NEXT_PUBLIC_MAP_TILE_URL='' NEXT_PUBLIC_MAP_ATTRIBUTION='' pnpm build:cf`); production must not fall back to OSM. `pnpm dev` alone allows the development OSM fallback. Restore the selected provider values and rebuild before any deployment. These checks do not require a subscription or alter production R2.
 
 The source fonts use Google Fonts, with system fallbacks if unavailable. No data-source API key is required for NHC or NWS.
 
@@ -88,7 +101,9 @@ Generate `CRON_SECRET` and `INDEXNOW_KEY` locally and save in the deployment sec
 
 The protected `GET /api/cron/refresh` expects `Authorization: Bearer <CRON_SECRET>`. Cloudflare's configured Cron Trigger invokes it every five minutes. For a separate Node deployment, schedule `pnpm refresh` on that host. No public endpoint accepts arbitrary URLs for submission. The script/endpoint checks official updates and local alerts, stores snapshots and submits canonical pages only when content changes. Weather writes finish before IndexNow; an indexing failure returns `indexNow.status=failed` without turning a successful weather refresh into a failure. Pending changes are retried on later Cron runs, including after `Retry-After`.
 
-NHC catalog/snapshot freshness expires after 10 minutes (two scheduled intervals); NWS freshness expires after 6 minutes (one interval plus grace). These are time-since-success checks, independent of advisory publication time. Failed source requests preserve the complete last-good object and its `fetchedAt`; advisory time remains `storm.lastUpdate`, with map-product times shown separately. If a track update fails, the previous advisory and geometry stay together and the page reports the mismatch/staleness. NWS `sent`/`expires` are validated; expired alerts are hidden. NWS refresh attempts still run if NHC is unavailable.
+NHC catalog/snapshot freshness expires after 10 minutes (two scheduled intervals); NWS freshness expires after 6 minutes (one interval plus grace). These are time-since-success checks, independent of advisory publication time. Only a fresh catalog can confirm a storm as active or archived; a missing or expired catalog makes its current activity unknown, with the last successful data-check time shown. Stale does not mean archived. Reviewed city pages are noindex and omitted from the sitemap while activity is unconfirmed.
+
+Failed source requests preserve the complete last-good object and its `fetchedAt`; advisory time remains `storm.lastUpdate`, with map-product times shown separately. On the first sighting, if GIS times out, cannot be parsed or has no URL, the validated catalog supplies a basic snapshot with `track: null`. Classification, position, intensity, pressure and source links remain available; the map explicitly reports missing forecast layers. Its `fetchedAt` is the successful catalog-fetch time. Subsequent scheduled refreshes retry GIS and restore the full map when available. If an existing track update fails or its URL disappears, the previous advisory and geometry stay together and the page reports the mismatch/staleness. One storm's GIS failure does not block others. NWS `sent`/`expires` are validated; expired alerts are hidden. NWS refresh attempts still run if NHC is unavailable.
 
 IndexNow stores per-canonical-page content fingerprints without `fetchedAt`. A city alert change affects only that city's approved active-storm pages; archive transitions affect the storm page and featured homepage, never archived city pages. The first run after this change baselines old archives instead of resubmitting them. Existing R2 weather object names are unchanged. Data refresh continues to work when indexing is disabled. Open browser tabs also refresh server data every five minutes while visible.
 

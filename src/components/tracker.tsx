@@ -118,8 +118,8 @@ export default function Tracker({
       </p>
       {!snapshot.track && (
         <p className="notice">
-          Forecast map layers are temporarily unavailable. The position above
-          comes from the latest available advisory.
+          Forecast track, cone and points are temporarily unavailable. The
+          position above comes from the saved official advisory.
         </p>
       )}
     </>

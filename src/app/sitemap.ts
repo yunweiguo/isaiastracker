@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         [...storms.values()].map(async (storm) => {
           const [path, ...cityPaths] = stormUrls(
             storm,
-            catalog
+            catalog && !catalog.stale
               ? catalog.storms.some((active) => active.id === storm.id)
               : null,
           );

@@ -59,7 +59,7 @@ export async function refreshCatalog(): Promise<Catalog> {
     await Promise.all(
       catalog.storms.map(async (storm) => {
         try {
-          await refreshSnapshot(storm);
+          await refreshSnapshot(storm, catalog.fetchedAt);
         } catch (error) {
           console.warn(
             "NHC snapshot unavailable",
@@ -82,10 +82,13 @@ export async function refreshCatalog(): Promise<Catalog> {
     );
   }
 }
-async function refreshSnapshot(storm: Storm): Promise<Snapshot> {
+async function refreshSnapshot(
+  storm: Storm,
+  fetchedAt: string,
+): Promise<Snapshot> {
   const cached = await getSnapshot(storm);
   if (cached?.track && JSON.stringify(cached.storm) === JSON.stringify(storm)) {
-    const result = { ...cached, fetchedAt: new Date().toISOString() };
+    const result = { ...cached, fetchedAt };
     await writeData(storm.id, result);
     return result;
   }
@@ -107,6 +110,9 @@ async function refreshSnapshot(storm: Storm): Promise<Snapshot> {
       if (!line || !cone || !points || !points.features.length)
         throw new Error("Track layers missing");
       track = { line, cone, points };
+    } else if (cached?.track) {
+      // A missing GIS URL must not discard an existing complete advisory.
+      return cached;
     }
   } catch (error) {
     console.warn(
@@ -115,7 +121,7 @@ async function refreshSnapshot(storm: Storm): Promise<Snapshot> {
     );
     // Keep the complete last-good advisory and geometry together on failure.
     if (cached) return cached;
-    throw error;
+    // The validated catalog still provides official base data for a first sighting.
   }
   const previous =
     cached && cached.storm.lastUpdate !== storm.lastUpdate
@@ -129,7 +135,7 @@ async function refreshSnapshot(storm: Storm): Promise<Snapshot> {
     storm,
     track,
     previous,
-    fetchedAt: new Date().toISOString(),
+    fetchedAt,
   };
   await writeData(storm.id, result);
   return result;
@@ -153,7 +159,7 @@ export async function resolveStorm(id: string) {
   return snapshot
     ? {
         snapshot,
-        active: catalog ? Boolean(storm) : null,
+        active: catalog && !catalog.stale ? Boolean(storm) : null,
         stale:
           !catalog ||
           catalog.stale ||
