@@ -5,13 +5,14 @@ import Refresh from "./refresh";
 import {
   classification,
   forecastRows,
-  formatTime,
+  knotsToKmh,
   knotsToMph,
   stormPath,
   type Snapshot,
 } from "@/lib/domain";
 import { isStale } from "@/lib/weather";
 import type { City } from "@/lib/config";
+import Time, { TimeZoneSwitch } from "./time";
 export default function Tracker({
   snapshot,
   city,
@@ -34,8 +35,8 @@ export default function Tracker({
       {storm.forecastTrack?.issuance &&
         storm.forecastTrack.issuance !== storm.lastUpdate && (
           <p className="product-time">
-            Storm status: {formatTime(storm.lastUpdate)}. Map forecast:{" "}
-            {formatTime(storm.forecastTrack.issuance)}. Official products can
+            Storm status: <Time value={storm.lastUpdate} />. Map forecast:{" "}
+            <Time value={storm.forecastTrack.issuance} />. Official products can
             update at different times.
           </p>
         )}
@@ -56,8 +57,8 @@ export default function Tracker({
         </p>
       )}
       <p className="product-time">
-        Official advisory: {formatTime(storm.lastUpdate)}. Last successful data
-        check: {formatTime(snapshot.fetchedAt)}.
+        Official advisory: <Time value={storm.lastUpdate} />. Last successful data
+        check: <Time value={snapshot.fetchedAt} />. <TimeZoneSwitch />
       </p>
       <section className="tracker-shell" aria-label="Storm tracker">
         <StormMap snapshot={snapshot} city={city} />
@@ -76,6 +77,9 @@ export default function Tracker({
               <dt>Sustained wind</dt>
               <dd>
                 {knotsToMph(storm.intensity)} <small>mph</small>
+                <small>
+                  {" "}· {storm.intensity} kt · {knotsToKmh(storm.intensity)} km/h
+                </small>
               </dd>
             </div>
             <div>
@@ -91,7 +95,7 @@ export default function Tracker({
             {Math.abs(storm.longitudeNumeric).toFixed(1)}°
             {storm.longitudeNumeric >= 0 ? "E" : "W"}
             <br />
-            <span>Reported {formatTime(storm.lastUpdate)}</span>
+            <span>Reported <Time value={storm.lastUpdate} /></span>
           </p>
           {storm.id.startsWith("al") ? (
             <CitySearch path={stormPath(storm)} selected={city?.slug} />
@@ -187,34 +191,29 @@ export function ForecastTable({ snapshot }: { snapshot: Snapshot }) {
 }
 export function ChangeSummary({ snapshot }: { snapshot: Snapshot }) {
   const previous = snapshot.previous;
+  if (!previous) return null;
   return (
     <section className="update-summary">
       <h2>Since the previous advisory</h2>
-      {previous ? (
-        <>
-          <p>
-            Compared with the saved advisory from{" "}
-            {formatTime(previous.lastUpdate)}:
-          </p>
-          <dl>
-            <div>
-              <dt>Sustained wind</dt>
-              <dd>
-                {knotsToMph(previous.intensity)} →{" "}
-                {knotsToMph(snapshot.storm.intensity)} mph
-              </dd>
-            </div>
-            <div>
-              <dt>Central pressure</dt>
-              <dd>
-                {previous.pressure} → {snapshot.storm.pressure} mb
-              </dd>
-            </div>
-          </dl>
-        </>
-      ) : (
-        <p>No previous advisory comparison is available in the saved data.</p>
-      )}
+      <p>
+        Compared with the saved advisory from{" "}
+        <Time value={previous.lastUpdate} />:
+      </p>
+      <dl>
+        <div>
+          <dt>Sustained wind</dt>
+          <dd>
+            {knotsToMph(previous.intensity)} →{" "}
+            {knotsToMph(snapshot.storm.intensity)} mph
+          </dd>
+        </div>
+        <div>
+          <dt>Central pressure</dt>
+          <dd>
+            {previous.pressure} → {snapshot.storm.pressure} mb
+          </dd>
+        </div>
+      </dl>
       <p className="muted">
         Changes describe official observations and forecasts, not an independent
         prediction.

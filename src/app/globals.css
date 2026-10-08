@@ -430,10 +430,17 @@ input[type="range"] {
 }
 .source-link {
   margin-top: auto;
-  padding-top: 15px;
-  font-size: 11px;
+  padding: 10px 12px;
+  border: 1px solid #c7d6de;
+  border-radius: 6px;
+  background: var(--bluewash);
+  color: var(--ink);
+  font-size: 13px;
   font-weight: 600;
   text-decoration: none;
+}
+.source-link:hover {
+  text-decoration: underline;
 }
 .map-caption {
   display: flex;
@@ -464,6 +471,9 @@ input[type="range"] {
   grid-template-columns: 1fr 1fr;
   gap: 80px;
   padding: 64px 0;
+}
+.below-map.no-comparison {
+  display: block;
 }
 .feature-story h2 {
   font-size: 36px;
@@ -1085,9 +1095,34 @@ td:first-child {
   color: var(--muted);
   margin: 0 0 10px;
 }
+.time-zone-switch {
+  border: 0;
+  padding: 0 0 0 4px;
+  background: transparent;
+  color: var(--ocean);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .search-field:focus-within {
   outline: 2px solid var(--ocean);
   outline-offset: 2px;
+}
+.location-link {
+  display: block;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ocean);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.location-link:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 @media (max-width: 640px) {
   .hero {

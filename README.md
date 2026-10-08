@@ -19,6 +19,8 @@ pnpm dev
 pnpm test
 pnpm check
 pnpm build
+pnpm exec playwright install chromium
+pnpm test:browser
 pnpm start
 ```
 
@@ -26,7 +28,7 @@ pnpm start
 
 - Fixed featured storm on the homepage, including its saved archive; a fixed URL per storm and year.
 - Leaflet forecast track, official cone, forecast points and time slider.
-- Five Gulf Coast city views with local NWS alerts, city time zones, source links and an explicit representative-coordinate limitation.
+- Five Gulf Coast city views with local NWS alerts, browser-local timestamps, source links and an explicit representative-coordinate limitation.
 - Server-rendered status, forecast table and alert content. Map interaction is client-side.
 - Last-good weather snapshots, archived storms, previous-advisory wind/pressure comparison and source/freshness warnings. Different product publication times remain visible.
 - GA4 analytics, Plausible, sitemap, robots, canonical URLs, Open Graph image, breadcrumbs, Google/Bing site-verification tags.
@@ -36,7 +38,7 @@ Individual spaghetti-model tracks and precise city wind-arrival calculations are
 
 ## Deployment model
 
-The production domain is `https://isaiastracker.site` (without `www`). `.env.example` contains this canonical origin, GA measurement ID and the site's Plausible script URL. Copying these settings enables indexable production metadata. For a non-indexable preview build, override `NEXT_PUBLIC_SITE_URL=http://localhost:3000` before building. IndexNow is enabled in the production Wrangler configuration after public key verification; it remains disabled for local Node runs. The `workers.dev` alias and preview URLs are disabled to avoid an extra public copy.
+The production domain is `https://isaiastracker.site` (without `www`). `.env.example` contains this canonical origin, GA measurement ID and the site's Plausible script URL. Copying these settings enables indexable production metadata. For a non-indexable preview build, override `NEXT_PUBLIC_SITE_URL=http://localhost:3000` before building. IndexNow is enabled in the production Wrangler configuration after public key verification; it remains disabled for local Node runs. The `workers.dev` alias and preview URLs are disabled to avoid an extra public copy. Workers Builds previews use the separate `isaias-tracker-weather-preview` R2 bucket; create it before enabling previews. Preview snapshots are not copied from production.
 
 Production runs on **Cloudflare Workers through OpenNext**, with weather snapshots in the private R2 bucket `isaias-tracker-weather`. `wrangler.jsonc` binds the domain and schedules a refresh every five minutes. `worker.ts` invokes the protected Next.js refresh handler from the scheduled event. No external cron service is needed.
 

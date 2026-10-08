@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cityBySlug, cityCoverage } from "@/lib/config";
 import { getAlerts, resolvePage } from "@/lib/weather";
-import { formatTime, canIndexCity, stormPath } from "@/lib/domain";
+import { canIndexCity, stormPath } from "@/lib/domain";
 import { metadata } from "@/lib/seo";
 import Tracker from "@/components/tracker";
+import Time from "@/components/time";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ year: string; slug: string; city: string }> };
 export async function generateMetadata({ params }: Props) {
@@ -81,9 +82,9 @@ export default async function CityPage({ params }: Props) {
       </section>
       {(!result || result.stale) && (
         <p className="notice" role="status">
-          {result
-            ? `Live alerts could not be refreshed. Last checked ${formatTime(result.fetchedAt, city.zone)}.`
-            : "Local alert data is unavailable."}{" "}
+          {result ? (
+            <>Live alerts could not be refreshed. Last checked <Time value={result.fetchedAt} />.</>
+          ) : "Local alert data is unavailable."}{" "}
           Check the local NWS office for current warnings.
         </p>
       )}
@@ -102,8 +103,8 @@ export default async function CityPage({ params }: Props) {
           </span>
           <h3>{alert.headline}</h3>
           <p>
-            Issued {formatTime(alert.sent, city.zone)} · Expires{" "}
-            {formatTime(alert.expires, city.zone)}
+            Issued <Time value={alert.sent} /> · Expires{" "}
+            <Time value={alert.expires} />
           </p>
           <details>
             <summary>Read alert and instructions</summary>
@@ -117,7 +118,7 @@ export default async function CityPage({ params }: Props) {
       ))}
       {result && (
         <p className="muted small">
-          Alerts checked {formatTime(result.fetchedAt, city.zone)}. These are
+          Alerts checked <Time value={result.fetchedAt} />. These are
           saved local alerts for all hazards. We have not verified a connection
           between these alerts and {snapshot.storm.name}. They are not
           historical alerts associated with the saved storm advisory.

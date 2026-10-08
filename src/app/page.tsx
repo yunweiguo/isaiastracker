@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Tracker, { ChangeSummary } from "@/components/tracker";
 import { featuredStorm, archivedSnapshots } from "@/lib/weather";
-import { formatTime, stormPath } from "@/lib/domain";
+import { stormPath } from "@/lib/domain";
 import { metadata } from "@/lib/seo";
+import Time from "@/components/time";
 export const dynamic = "force-dynamic";
 const isIsaias = () => process.env.FEATURED_STORM_ID?.trim() === "al092026";
 export async function generateMetadata() {
@@ -39,7 +40,7 @@ export default async function Home() {
                 ? `Tracking ${storm?.name}`
                 : "Official data status unavailable"}
             <span className="context-divider" />
-            {storm ? formatTime(storm.lastUpdate) : "Official NHC forecasts"}
+            {storm ? <Time value={storm.lastUpdate} /> : "Official NHC forecasts"}
           </div>
           <h1>
             {isIsaias()
@@ -61,9 +62,9 @@ export default async function Home() {
             ✳
           </span>
           <p>
-            One forecast.
+            Official forecast.
             <br />
-            Your place in it.
+            Local context.
           </p>
           <a href="#tracker">
             Explore the map <span aria-hidden="true">↓</span>
@@ -79,7 +80,7 @@ export default async function Home() {
               active={data?.active}
             />
           </div>
-          <div className="below-map">
+          <div className={`below-map${snapshot.previous ? "" : " no-comparison"}`}>
             <section className="feature-story">
               <span className="source-tag">The full picture</span>
               <h2>
@@ -97,7 +98,7 @@ export default async function Home() {
                 <span aria-hidden="true">↗</span>
               </Link>
             </section>
-            <ChangeSummary snapshot={snapshot} />
+            {snapshot.previous && <ChangeSummary snapshot={snapshot} />}
           </div>
           {catalog && catalog.storms.some((s) => s.id !== storm?.id) && (
             <section className="other-storms">

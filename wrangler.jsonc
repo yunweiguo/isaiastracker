@@ -30,4 +30,20 @@
     "NHC_USER_AGENT": "Stormscope/1.0 (+https://isaiastracker.site)",
     "INDEXNOW_ENABLED": "true",
   },
+  "previews": {
+    "vars": {
+      "WEATHER_STORAGE": "r2",
+      "NEXT_PUBLIC_SITE_URL": "http://localhost:3000",
+      "NEXT_PUBLIC_SITE_NAME": "Stormscope Preview",
+      "NEXT_PUBLIC_PLAUSIBLE_DOMAIN": "",
+      "NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL": "",
+      "NEXT_PUBLIC_GA_ID": "",
+      "FEATURED_STORM_ID": "al092026",
+      "NHC_USER_AGENT": "Stormscope Preview/1.0 (+https://isaiastracker.site)",
+      "INDEXNOW_ENABLED": "false",
+    },
+    "r2_buckets": [
+      { "binding": "WEATHER_DATA", "bucket_name": "isaias-tracker-weather-preview" },
+    ],
+  },
 }

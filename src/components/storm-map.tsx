@@ -32,6 +32,7 @@ export default function StormMap({
         const storm = snapshot.storm;
         map = L.map(element.current, {
           scrollWheelZoom: false,
+          zoomAnimation: false,
           zoomControl: false,
           attributionControl: true,
         });

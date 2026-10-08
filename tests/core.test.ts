@@ -9,6 +9,7 @@ import {
   classification,
   forecastRows,
   knotsToMph,
+  knotsToKmh,
   stormPath,
   type Track,
 } from "../src/lib/domain";
@@ -45,6 +46,11 @@ test("weather, indexing and failure paths", async (t) => {
         .activeStorms[0];
       assert.equal(parsed.intensity, 35);
       assert.equal(knotsToMph(parsed.intensity), 40);
+      assert.equal(knotsToKmh(parsed.intensity), 65);
+      assert.equal(knotsToMph(70), 80);
+      assert.equal(knotsToKmh(70), 130);
+      assert.equal(knotsToMph(0), 0);
+      assert.equal(knotsToKmh(250), 465);
       assert.equal(stormPath(parsed), "/storms/2026/isaias-al092026");
       for (const change of [
         { intensity: null },

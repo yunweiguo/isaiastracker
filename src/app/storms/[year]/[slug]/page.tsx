@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import Tracker, { ChangeSummary, ForecastTable } from "@/components/tracker";
 import { resolvePage } from "@/lib/weather";
-import { classification, formatTime, stormPath } from "@/lib/domain";
+import { classification, stormPath } from "@/lib/domain";
 import { metadata, jsonLd } from "@/lib/seo";
 import { siteUrl } from "@/lib/config";
+import Time from "@/components/time";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ year: string; slug: string }> };
 export async function generateMetadata({ params }: Props) {
@@ -38,7 +39,7 @@ export default async function StormPage({ params }: Props) {
       <section className="detail-hero">
         <p className="hero-context">
           {classification(s)} <span className="context-divider" />
-          {formatTime(s.lastUpdate)}
+          <Time value={s.lastUpdate} />
         </p>
         <h1>
           {s.name} {year}{" "}
@@ -52,7 +53,7 @@ export default async function StormPage({ params }: Props) {
       </section>
       <Tracker snapshot={snapshot} stale={data.stale} active={data.active} />
       <ForecastTable snapshot={snapshot} />
-      <ChangeSummary snapshot={snapshot} />
+      {snapshot.previous && <ChangeSummary snapshot={snapshot} />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
