@@ -26,7 +26,7 @@ pnpm start
 
 - Fixed featured storm on the homepage, including its saved archive; a fixed URL per storm and year.
 - Leaflet forecast track, official cone, forecast points and time slider.
-- Five Gulf Coast city views with local NWS alerts, city time zones, source links and an explicit representative-coordinate limitation.
+- Five Gulf Coast city views with local NWS alerts, browser-local timestamps, source links and an explicit representative-coordinate limitation.
 - Server-rendered status, forecast table and alert content. Map interaction is client-side.
 - Last-good weather snapshots, archived storms, previous-advisory wind/pressure comparison and source/freshness warnings. Different product publication times remain visible.
 - GA4 analytics, Plausible, sitemap, robots, canonical URLs, Open Graph image, breadcrumbs, Google/Bing site-verification tags.

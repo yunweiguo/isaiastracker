@@ -88,7 +88,9 @@ export function stormUrls(storm: Storm, active: boolean | null) {
 export function stormPath(storm: Pick<Storm, "id" | "name">) {
   return `/storms/${storm.id.slice(-4)}/${storm.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${storm.id}`;
 }
-export const knotsToMph = (knots: number) => Math.round(knots * 1.15078);
+// NHC advisory winds use 5-unit increments; avoid implying 1 mph precision.
+export const knotsToMph = (knots: number) => Math.round((knots * 1.15078) / 5) * 5;
+export const knotsToKmh = (knots: number) => Math.round((knots * 1.852) / 5) * 5;
 export function classification(
   storm: Pick<Storm, "classification" | "intensity">,
 ) {

@@ -76,16 +76,23 @@ export default function About() {
       </p>
       <h2>Units and forecast comparisons</h2>
       <p>
-        Forecast wind speeds are converted from knots to miles per hour and
-        rounded to the nearest whole number. Times in the forecast-point table
-        follow the source labels. City alert timestamps use the city’s time
-        zone. Advisory comparisons use the previously saved official advisory.
+        Forecast wind speeds are converted from knots and rounded to the
+        nearest 5 mph or 5 km/h, matching NHC advisory precision. Timestamped
+        advisories and alerts default to your browser’s time zone, with a UTC
+        switch. Forecast-point labels follow the NHC map product as published.
+        Advisory comparisons use the previously saved official advisory.
       </p>
       <h2>Questions about a forecast?</h2>
       <p>
         Use the official advisory and local NWS links throughout this site.
         Follow local emergency management for evacuation and shelter
         instructions. Stormscope is not affiliated with NOAA, NHC or NWS.
+      </p>
+      <p>
+        Stormscope is maintained through the public{" "}
+        <a href="https://github.com/yunweiguo/isaiastracker">project repository</a>.
+        For a site error or feedback, open an{" "}
+        <a href="https://github.com/yunweiguo/isaiastracker/issues/new">issue</a>.
       </p>
     </article>
   );

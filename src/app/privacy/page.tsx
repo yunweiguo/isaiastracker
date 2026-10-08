@@ -15,6 +15,11 @@ export default function Privacy() {
         supported cities. City pages request public weather data using fixed
         city coordinates.
       </p>
+      <p>
+        If you choose “Use my location,” your browser asks permission and opens
+        the official NWS forecast with your coordinates in the URL. Stormscope
+        does not store those coordinates.
+      </p>
       <h2>Analytics</h2>
       <p>
         {analyticsConfig.plausibleSrc
@@ -33,8 +38,8 @@ export default function Privacy() {
       </p>
       <h2>Maps, fonts and external links</h2>
       <p>
-        Your browser requests map tiles from the configured map provider,
-        OpenStreetMap by default, and fonts from Google Fonts. These providers
+        Your browser requests map tiles from the configured map provider, if
+        enabled, and fonts from Google Fonts. These providers
         receive the technical information needed to serve requests, including
         your IP address. Their privacy policies apply to those requests.
       </p>

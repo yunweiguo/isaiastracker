@@ -257,6 +257,7 @@ test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
             html(await Home()),
             /<h1>Hurricane Isaias 2026 Tracker<\/h1>/,
           );
+          assert.doesNotMatch(html(await Home()), /Since the previous advisory/);
           assert.equal(
             (await homeMetadata()).alternates?.canonical,
             "https://isaiastracker.site/",
@@ -342,11 +343,8 @@ test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
             await CityPage({ params: cityParams }),
           ]) {
             const body = html(page);
-            assert.ok(
-              body.includes(
-                `Last successful data check: ${formatTime(data.snapshot.fetchedAt)}`,
-              ),
-            );
+            assert.match(body, /Last successful data check: <time/);
+            assert.ok(body.includes(formatTime(data.snapshot.fetchedAt)));
             if (active === null) {
               assert.match(body, /Live status could not be verified/);
               assert.doesNotMatch(

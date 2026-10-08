@@ -11,6 +11,7 @@ export default function CitySearch({
   selected?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [locationError, setLocationError] = useState("");
   const matches = cities.filter((city) =>
     `${city.name} ${city.state} ${city.code}`
       .toLowerCase()
@@ -41,6 +42,35 @@ export default function CitySearch({
           autoComplete="off"
         />
       </div>
+      <button
+        type="button"
+        className="location-link"
+        onClick={() => {
+          if (!navigator.geolocation) {
+            setLocationError("Location is unavailable in this browser.");
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => {
+              window.location.assign(
+                `https://forecast.weather.gov/MapClick.php?lat=${coords.latitude}&lon=${coords.longitude}`,
+              );
+            },
+            () =>
+              setLocationError(
+                "Location unavailable. Search a city or open NWS directly.",
+              ),
+            { timeout: 10000 },
+          );
+        }}
+      >
+        Use my location for the official NWS forecast ↗
+      </button>
+      {locationError && (
+        <p role="status" className="muted small">
+          {locationError}
+        </p>
+      )}
       <div className="city-results">
         {matches.map((city) => (
           <Link
