@@ -21,6 +21,7 @@ import {
   getAlerts,
   writeData,
   resolvePage,
+  parsePublicAdvisory,
 } from "../src/lib/weather";
 import { GET as refresh } from "../src/app/api/cron/refresh/route";
 import { GET as keyFile } from "../src/app/[file]/route";
@@ -39,6 +40,20 @@ const storm = {
   lastUpdate: "2026-10-07T09:00:00.000Z",
 };
 test("weather, indexing and failure paths", async (t) => {
+  await t.test("only displays impacts from the matching official advisory", () => {
+    const current = catalogSchema.parse({ activeStorms: [{
+      ...storm,
+      publicAdvisory: { advNum: "008", url: "https://www.nhc.noaa.gov/text/MIATCPAT4.shtml" },
+    }] }).activeStorms[0];
+    const product = `<pre>Hurricane Isaias Advisory Number 8\nAL092026\nWATCHES AND WARNINGS\n---\nSUMMARY OF WATCHES AND WARNINGS IN EFFECT:\nA Hurricane Warning is in effect for...\n* Ocean Springs to Bay/Gulf County Line\n\nA Hurricane Warning means danger.\nDISCUSSION AND OUTLOOK\n---\nHAZARDS AFFECTING LAND\n---\nSTORM SURGE: 5-7 ft\nRAINFALL: 3-7 inches\nNEXT ADVISORY\n---\nNext intermediate advisory at 100 PM CDT.\n$$</pre>`;
+    const parsed = parsePublicAdvisory(product, current);
+    assert.match(parsed?.watches || "", /Ocean Springs/);
+    assert.doesNotMatch(parsed?.watches || "", /means danger/);
+    assert.match(parsed?.hazards || "", /STORM SURGE: 5-7 ft/);
+    assert.match(parsed?.next || "", /100 PM CDT/);
+    assert.equal(parsePublicAdvisory(product.replace("Number 8", "Number 7"), current), null);
+    assert.equal(parsePublicAdvisory(product.replace("AL092026", "AL102026"), current), null);
+  });
   await t.test(
     "validates upstream numbers, identity and download hosts",
     () => {

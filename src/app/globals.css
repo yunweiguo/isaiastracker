@@ -666,6 +666,20 @@ input[type="range"] {
 .forecast-section {
   padding: 46px 0;
 }
+.nhc-impacts {
+  margin: 26px 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bluewash);
+}
+.nhc-impacts h2 { margin: 0 0 8px; font-size: 24px; }
+.nhc-impacts h3 { margin: 22px 0 8px; font-size: 16px; }
+.nhc-impacts pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.5; }
+.nhc-impacts details { margin: 20px 0; }
+.nhc-impacts summary { cursor: pointer; font-weight: 600; }
+.nhc-impacts a { display: inline-block; margin: 8px 20px 0 0; }
+.nhc-impacts .next-advisory { white-space: pre-line; }
 .section-heading {
   display: flex;
   justify-content: space-between;
