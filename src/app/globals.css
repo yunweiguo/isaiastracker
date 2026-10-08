@@ -575,6 +575,10 @@ input[type="range"] {
   padding: 35px 0;
   border-top: 1px solid var(--line);
 }
+.page-byline {
+  font-size: 13px;
+  color: var(--muted);
+}
 .faq h2 {
   margin-bottom: 24px;
 }

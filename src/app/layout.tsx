@@ -78,8 +78,12 @@ export default function RootLayout({
             </small>
           </div>
           <nav aria-label="Footer navigation">
-            <Link href="/about">Sources & methodology</Link>
+            <Link href="/about">About & sources</Link>
+            <a href="https://github.com/yunweiguo/isaiastracker/issues/new">
+              Contact
+            </a>
             <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
             <a href="https://www.nhc.noaa.gov/">National Hurricane Center ↗</a>
           </nav>
         </footer>
@@ -89,10 +93,23 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: jsonLd({
               "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: siteName,
-              url: siteUrl,
-              inLanguage: "en",
+              "@graph": [
+                {
+                  "@type": "WebSite",
+                  "@id": `${siteUrl}/#website`,
+                  name: siteName,
+                  url: siteUrl,
+                  inLanguage: "en",
+                  publisher: { "@id": `${siteUrl}/#publisher` },
+                },
+                {
+                  "@type": "Organization",
+                  "@id": `${siteUrl}/#publisher`,
+                  name: siteName,
+                  url: siteUrl,
+                  sameAs: ["https://github.com/yunweiguo/isaiastracker"],
+                },
+              ],
             }),
           }}
         />

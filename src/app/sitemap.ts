@@ -20,6 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { url: `${siteUrl}/about` },
     { url: `${siteUrl}/privacy` },
+    { url: `${siteUrl}/terms` },
     ...(
       await Promise.all(
         [...storms.values()].map(async (storm) => {
