@@ -21,10 +21,12 @@ const track = {
   cone: { type: "FeatureCollection", features: [{
     type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[-89, 24], [-86, 24], [-86, 27], [-89, 24]]] },
   }] },
-  points: { type: "FeatureCollection", features: [{
-    type: "Feature", geometry: { type: "Point", coordinates: [-88, 25] },
-    properties: { TAU: 0, DATELBL: "7:30 PM Wed", TIMEZONE: "CDT", MAXWIND: 70 },
-  }] },
+  points: { type: "FeatureCollection", features: [
+    { type: "Feature", geometry: { type: "Point", coordinates: [-88, 25] },
+      properties: { TAU: 0, DATELBL: "7:30 PM Wed", TIMEZONE: "CDT", MAXWIND: 70 } },
+    { type: "Feature", geometry: { type: "Point", coordinates: [-87, 26] },
+      properties: { TAU: 12, DATELBL: "7:30 AM Thu", TIMEZONE: "CDT", MAXWIND: 75 } },
+  ] },
 };
 const directory = await mkdtemp(join(tmpdir(), "stormscope-browser-"));
 const write = (name: string, value: unknown) =>
@@ -105,6 +107,19 @@ try {
     assert.match(local || "", zone === "America/New_York" ? /Oct 7, 2026/ : /Oct 8, 2026/);
     assert.match((await page.locator(".storm-stats").textContent()) || "", /80 mph · 70 kt · 130 km\/h/);
     assert.match((await page.locator(".storm-label").textContent()) || "", /80 mph/);
+    await page.locator(".leaflet-container").waitFor();
+    const mapPaths = await page.locator(".leaflet-overlay-pane path").count();
+    assert.ok(mapPaths);
+    const cone = page.getByRole("checkbox", { name: "Forecast cone" });
+    assert.equal(await cone.isChecked(), true);
+    await cone.uncheck();
+    await page.waitForFunction((count) => document.querySelectorAll(".leaflet-overlay-pane path").length < count, mapPaths);
+    await cone.check();
+    await page.waitForFunction((count) => document.querySelectorAll(".leaflet-overlay-pane path").length === count, mapPaths);
+    const timeline = page.getByRole("slider", { name: "Forecast time" });
+    await timeline.focus();
+    await timeline.press("ArrowRight");
+    await page.getByText("7:30 AM Thu CDT").first().waitFor();
     await page.locator(".time-zone-switch").click();
     await page.locator(".time-zone-switch").filter({ hasText: "UTC" }).waitFor();
     assert.match((await time.textContent()) || "", /Oct 8, 2026, 12:30 AM UTC/);
@@ -124,6 +139,15 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
   }
+
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const { page: mobilePage, errors: mobileErrors } = await open(mobile);
+  await mobilePage.locator(".leaflet-container").waitFor();
+  assert.equal(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  assert.equal(await mobilePage.getByRole("heading", { level: 2, name: "Hurricane Isaias Forecast Path and Cone" }).isVisible(), true);
+  assert.equal(await mobilePage.getByRole("heading", { level: 2, name: "Hurricane Isaias Last Saved Status" }).isVisible(), true);
+  assert.deepEqual(mobileErrors, []);
+  await mobile.close();
 
   const success = await browser.newContext({ geolocation: { latitude: 30.1234567, longitude: -87.9876543 }, permissions: ["geolocation"] });
   const { page: successPage, errors: successErrors } = await open(success);
@@ -175,7 +199,7 @@ try {
   assert.match((await fallbackPage.locator(`time[datetime="${advisory}"]`).first().textContent()) || "", /Oct 8, 2026, 12:30 AM UTC/);
   assert.deepEqual(fallbackErrors, []);
   await fallbackContext.close();
-  console.log("Browser smoke passed: timezone, hydration, city navigation, geolocation and policy");
+  console.log("Browser smoke passed: map controls, mobile layout, timezone, hydration, city navigation, geolocation and policy");
 } finally {
   await browser?.close();
   child.kill("SIGTERM");

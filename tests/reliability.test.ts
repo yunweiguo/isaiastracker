@@ -94,6 +94,10 @@ const html = (element: Awaited<ReturnType<typeof Home>>) =>
   renderToStaticMarkup(
     createElement(AppRouterContext.Provider, { value: {} as never }, element),
   );
+const headings = (body: string) =>
+  [...body.matchAll(/<h([1-3])(?:\s[^>]*)?>([\s\S]*?)<\/h\1>/g)].map(
+    ([, level, content]) => [Number(level), content.replace(/<[^>]*>/g, "").trim()] as const,
+  );
 
 test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
   const objects = new Map<string, string>();
@@ -343,6 +347,12 @@ test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
             await CityPage({ params: cityParams }),
           ]) {
             const body = html(page);
+            const pageHeadings = headings(body);
+            assert.equal(pageHeadings.filter(([level]) => level === 1).length, 1);
+            assert.ok(pageHeadings.every(([, text]) => text.length > 0));
+            assert.ok(pageHeadings.some(([, text]) =>
+              text === `Isaias ${active === true ? "Current Status" : active === false ? "Last Official Status" : "Last Saved Status"}`,
+            ));
             assert.match(body, /Last successful data check: <time/);
             assert.ok(body.includes(formatTime(data.snapshot.fetchedAt)));
             if (active === null) {
@@ -405,14 +415,66 @@ test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
         assert.equal((await homeMetadata()).title, title);
         let body = html(await Home());
         assert.match(body, /<h1>Hurricane Isaias 2026 Tracker<\/h1>/);
+        assert.deepEqual(headings(body).filter(([level]) => level === 1), [
+          [1, "Hurricane Isaias 2026 Tracker"],
+        ]);
+        assert.deepEqual(headings(body).filter(([level]) => level === 2), [
+          [2, "Isaias Forecast Map"],
+          [2, "Isaias Current Status"],
+          [2, "Explore Isaias Advisory Details"],
+          [2, "Also being tracked"],
+          [2, "Hurricane Forecast FAQs"],
+        ]);
+        const detailHeadings = headings(html(await StormPage({ params })));
+        assert.equal(detailHeadings.filter(([level]) => level === 1).length, 1);
+        assert.deepEqual(detailHeadings.filter(([level]) => level === 2), [
+          [2, "Isaias Forecast Map"],
+          [2, "Isaias Current Status"],
+          [2, "Along the forecast path"],
+        ]);
+        const cityHeadings = headings(html(await CityPage({ params: cityParams })));
+        assert.equal(cityHeadings.filter(([level]) => level === 1).length, 1);
+        assert.deepEqual(cityHeadings.filter(([level]) => level === 2), [
+          [2, "Local alerts for Pensacola"],
+          [2, "Isaias Forecast Map"],
+          [2, "Isaias Current Status"],
+          [2, "What this map tells you"],
+        ]);
         assert.match(body, /Official classification: Tropical storm/);
         assert.match(body, /Official advisory:/);
+        save("catalog", {
+          ...catalog,
+          storms: [{ ...storm, classification: "HU" }, other.storm],
+        });
+        save(storm.id, {
+          ...snapshot,
+          storm: { ...storm, classification: "HU" },
+          track: {
+            line: { type: "FeatureCollection", features: [] },
+            cone: { type: "FeatureCollection", features: [] },
+            points: { type: "FeatureCollection", features: [] },
+          },
+        });
+        body = html(await Home());
+        assert.ok(headings(body).some(([, text]) => text === "Hurricane Isaias Forecast Path and Cone"));
+        assert.ok(headings(body).some(([, text]) => text === "Hurricane Isaias Current Status"));
+        assert.ok(headings(body).some(([, text]) => text === "Explore the Hurricane Isaias Advisory Details"));
+        seed();
+        save(storm.id, {
+          ...snapshot,
+          previous: { intensity: 30, pressure: 1008, lastUpdate: old },
+        });
+        body = html(await Home());
+        assert.match(body, /<h2>Changes Since the Previous NHC Advisory<\/h2>/);
+        assert.match(body, /35 → 40 mph/);
+        seed();
         save("catalog", { ...catalog, storms: [other.storm] });
         const featured = await featuredStorm();
         assert.equal(featured.data?.snapshot.storm.id, storm.id);
         assert.equal(featured.data?.active, false);
         body = html(await Home());
         assert.match(body, /Archived \/ Last Official Advisory/);
+        assert.ok(headings(body).some(([, text]) => text === "Isaias Last Official Status"));
         assert.equal((await homeMetadata()).title, title);
         assert.match(html(await StormPage({ params })), /advisory archive/);
         assert.match(
@@ -422,6 +484,10 @@ test("snapshot reads, SEO rendering and refresh reliability", async (t) => {
         objects.delete(`${storm.id}.json`);
         body = html(await Home());
         assert.match(body, /<h1>Hurricane Isaias 2026 Tracker<\/h1>/);
+        assert.deepEqual(headings(body).filter(([level]) => level === 2), [
+          [2, "Official data is temporarily unavailable"],
+          [2, "Hurricane Forecast FAQs"],
+        ]);
         assert.match(
           body,
           /No saved official Isaias 2026 advisory is available/,
