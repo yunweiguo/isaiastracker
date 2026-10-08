@@ -937,14 +937,13 @@ td:first-child {
     display: block;
   }
   .storm-heading {
-    float: left;
+    margin-bottom: 14px;
   }
   .storm-heading h2 {
     font-size: 23px;
   }
   .storm-stats {
     padding: 0 0 13px;
-    margin-left: 135px;
     gap: 10px;
     border: 0;
   }
