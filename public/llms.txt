@@ -1,0 +1,17 @@
+# Stormscope
+
+> Independent hurricane tracker displaying official National Hurricane Center forecasts and National Weather Service alerts. It does not issue forecasts or safety instructions.
+
+For current conditions, use the official sources linked on each page. Saved advisories may be historical.
+
+## Pages
+
+- [Storm tracker](https://isaiastracker.site/): latest available storm map and advisory links.
+- [Data and methodology](https://isaiastracker.site/about): sources, update timing and limitations.
+- [Privacy](https://isaiastracker.site/privacy): visitor data and external services.
+- [Terms](https://isaiastracker.site/terms): use of this information tool.
+
+## Official sources
+
+- [National Hurricane Center](https://www.nhc.noaa.gov/)
+- [National Weather Service](https://www.weather.gov/)

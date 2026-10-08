@@ -2,7 +2,8 @@ import Link from "next/link";
 import Tracker, { ChangeSummary } from "@/components/tracker";
 import { featuredStorm, archivedSnapshots } from "@/lib/weather";
 import { stormPath } from "@/lib/domain";
-import { metadata } from "@/lib/seo";
+import { jsonLd, metadata } from "@/lib/seo";
+import { siteUrl } from "@/lib/config";
 import Time from "@/components/time";
 export const dynamic = "force-dynamic";
 const isIsaias = () => process.env.FEATURED_STORM_ID?.trim() === "al092026";
@@ -55,6 +56,9 @@ export default async function Home() {
               : "Explore official storm paths, saved advisories and local weather sources."}
             {data?.active === false &&
               " The data below is archived, not a live forecast."}
+          </p>
+          <p className="page-byline">
+            By <Link href="/about">Stormscope</Link> · Weather data from NHC and NWS
           </p>
         </div>
         <div className="hero-aside">
@@ -151,7 +155,7 @@ export default async function Home() {
         </section>
       )}
       <section className="faq">
-        <h2>A little context goes a long way.</h2>
+        <h2>What should you know about hurricane forecasts?</h2>
         <details>
           <summary>Is this an official hurricane forecast?</summary>
           <p>
@@ -175,7 +179,12 @@ export default async function Home() {
           <p>
             No. The cone represents uncertainty in the path of the storm center.
             Hazardous wind, rain and storm surge can extend beyond it. Check
-            local warnings for your location.
+            local warnings for your location. The{" "}
+            <a href="https://www.nhc.noaa.gov/aboutcone.shtml">
+              National Hurricane Center
+            </a>{" "}
+            describes it as the “probable track of the center of a tropical
+            cyclone.”
           </p>
         </details>
         <details>
@@ -190,6 +199,39 @@ export default async function Home() {
           </p>
         </details>
       </section>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLd({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "@id": `${siteUrl}/#forecast-questions`,
+            url: `${siteUrl}/`,
+            inLanguage: "en",
+            author: { "@id": `${siteUrl}/#publisher` },
+            datePublished: "2026-10-08",
+            dateModified: "2026-10-08",
+            mainEntity: [
+              {
+                "@type": "Question",
+                name: "Is this an official hurricane forecast?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "Stormscope displays National Hurricane Center data and National Weather Service alerts. It does not produce forecasts and is not affiliated with NOAA. Follow official advisories and local emergency management instructions.",
+                },
+              },
+              {
+                "@type": "Question",
+                name: "Does being outside the cone mean I am safe?",
+                acceptedAnswer: {
+                  "@type": "Answer",
+                  text: "No. The cone describes uncertainty in the path of the storm center. Hazardous wind, rain and storm surge can extend beyond it. Check local warnings for your location.",
+                },
+              },
+            ],
+          }),
+        }}
+      />
     </div>
   );
 }
